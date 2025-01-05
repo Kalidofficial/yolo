@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 class SignUpScreen extends StatefulWidget {
   @override
@@ -12,8 +11,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
   bool _passwordVisible = false;
+  bool _isLoading = false;
 
   Future<void> _signUpUser() async {
     // Check if passwords match
@@ -23,6 +22,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
       return;
     }
+
+    setState(() {
+      _isLoading = true; // Show loading screen
+    });
 
     try {
       // Create user with email and password
@@ -34,39 +37,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // Send verification email
       await userCredential.user?.sendEmailVerification();
 
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Sign Up Successful! A verification email has been sent.")),
       );
 
-      Navigator.pushReplacementNamed(context, '/login');
+      // Check email verification status
+      await _checkEmailVerification(userCredential);
     } catch (e) {
+      setState(() {
+        _isLoading = false; // Hide loading screen in case of error
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
     }
   }
 
-  Future<void> _loginWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        return;
+  Future<void> _checkEmailVerification(UserCredential userCredential) async {
+    bool isVerified = false;
+
+    while (!isVerified) {
+      await Future.delayed(Duration(seconds: 3)); // Wait for 3 seconds before rechecking
+      await userCredential.user?.reload(); // Reload the user to update their status
+      isVerified = userCredential.user?.emailVerified ?? false;
+
+      if (isVerified) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Navigate to the complete profile screen
+        Navigator.pushReplacementNamed(context, '/complete_profile');
+        break; // Exit the loop
       }
+    }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+    if (!isVerified) {
+      setState(() {
+        _isLoading = false;
+      });
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      // Notify the user to verify their email
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Login Successful")),
-      );
-      Navigator.pushReplacementNamed(context, '/home');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(content: Text("Please verify your email before proceeding.")),
       );
     }
   }
@@ -94,7 +108,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ],
       ),
       backgroundColor: Colors.black,
-      body: Padding(
+      body: _isLoading
+          ? Center(
+        child: CircularProgressIndicator(), // Show loading screen while signing up
+      )
+          : Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -128,45 +146,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 style: TextStyle(
                   fontFamily: 'Jerry10',
                 ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: Text(
-                "Or",
-                style: TextStyle(
-                  fontFamily: 'Jerry10',
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _loginWithGoogle,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/logo/googlelogo.png',
-                    height: 20,
-                    width: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    "Google",
-                    style: TextStyle(
-                      fontFamily: 'Jerry10',
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
               ),
             ),
           ],

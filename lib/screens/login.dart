@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'homepage.dart';
+
 class LoginScreen extends StatefulWidget {
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -42,8 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Login Successful")),
         );
-        // Redirect to complete_profile.dart instead of home
-        Navigator.pushReplacementNamed(context, '/complete_profile');
+        // Redirect to HomePage.dart after successful login
+        Navigator.pushReplacementNamed(context, '/HomePage');
       }
     } catch (e) {
       setState(() {
@@ -127,8 +129,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Google Login Successful")),
         );
-        // Redirect to complete_profile.dart instead of home
-        Navigator.pushReplacementNamed(context, '/complete_profile');
+        // Redirect to HomePage.dart after successful login
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -365,20 +370,17 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             SizedBox(height: 10),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: _loginWithGoogle,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.grey[800],
                 padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
               ),
-              child: Text(
+              icon: Icon(Icons.login),
+              label: Text(
                 "Login with Google",
                 style: TextStyle(
                   fontFamily: 'Jerry10',
-                  color: Colors.black,
                 ),
               ),
             ),

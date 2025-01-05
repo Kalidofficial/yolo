@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfilePhotoScreen extends StatefulWidget {
   @override
@@ -8,105 +11,129 @@ class ProfilePhotoScreen extends StatefulWidget {
 }
 
 class _ProfilePhotoScreenState extends State<ProfilePhotoScreen> {
+  File? _imageFile;
+  String? _base64Image;
   final ImagePicker _picker = ImagePicker();
-  List<File> _photos = [];
+  bool _isUploading = false;
 
-  Future<void> _addPhoto() async {
-    if (_photos.length >= 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You can only upload up to 3 photos.')),
-      );
-      return;
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfileImage();
+  }
+
+  Future<void> _fetchProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (userDoc.exists) {
+        setState(() {
+          _base64Image = userDoc['profilePhoto']; // Fetch base64 string
+        });
+      }
     }
+  }
+
+  Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
     if (pickedFile != null) {
       setState(() {
-        _photos.add(File(pickedFile.path));
+        _imageFile = File(pickedFile.path);
       });
+    }
+  }
+
+  Future<void> _uploadImage() async {
+    if (_imageFile == null) return;
+
+    try {
+      setState(() {
+        _isUploading = true;
+      });
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('No user signed in.');
+      }
+
+      // Convert image to base64 string
+      final bytes = await _imageFile!.readAsBytes();
+      String base64Image = base64Encode(bytes);
+
+      // Save the base64 string to Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+        {
+          'profilePhoto': base64Image, // Save the image as base64 string
+        },
+        SetOptions(merge: true),
+      );
+
+      setState(() {
+        _isUploading = false;
+        _base64Image = base64Image; // Update the displayed image
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profile photo uploaded successfully!')),
+      );
+    } catch (e) {
+      setState(() {
+        _isUploading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading photo: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(
-          'Profile Photos',
-          style: TextStyle(
-            fontFamily: 'Jersey10',
-            color: Color(0xFFFF6100),
-          ),
-        ),
-        backgroundColor: Colors.black,
-        iconTheme: IconThemeData(color: Colors.white), // Makes the arrow white
+        title: const Text('Upload Profile Photo'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              "Add Your Photos",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Jersey10',
+            _imageFile != null
+                ? CircleAvatar(
+              radius: 60,
+              backgroundImage: FileImage(_imageFile!),
+            )
+                : _base64Image != null
+                ? CircleAvatar(
+              radius: 60,
+              backgroundImage: MemoryImage(base64Decode(_base64Image!)),
+            )
+                : CircleAvatar(
+              radius: 60,
+              backgroundColor: Colors.grey.shade300,
+              child: Icon(
+                Icons.person,
+                size: 60,
+                color: Colors.grey.shade700,
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              "You can upload up to 3 photos",
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 14,
-                fontFamily: 'Jersey10',
-              ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _pickImage,
+              child: const Text('Pick Image'),
             ),
-            SizedBox(height: 24),
-            Expanded(
-              child: ListView.builder(
-                itemCount: 3,
-                itemBuilder: (context, index) {
-                  return _buildPhotoCard(index < _photos.length ? _photos[index] : null);
-                },
-              ),
+            const SizedBox(height: 20),
+            _isUploading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+              onPressed: _uploadImage,
+              child: const Text('Upload Image'),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPhotoCard(File? photo) {
-    return GestureDetector(
-      onTap: photo == null ? _addPhoto : null, // Only add photo on empty card
-      child: Card(
-        color: Colors.grey[800],
-        margin: EdgeInsets.symmetric(vertical: 8.0),
-        child: Container(
-          width: double.infinity,  // Allow the card to take the full width
-          height: 300,  // Set a fixed height for the card
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),  // Optional rounded corners
-          ),
-          child: photo != null
-              ? ClipRRect(
-            borderRadius: BorderRadius.circular(10),  // Round the image corners
-            child: AspectRatio(
-              aspectRatio: 1.0, // Adjust to your preferred aspect ratio
-              child: Image.file(
-                photo,
-                fit: BoxFit.contain,  // Ensure image fits within the card without distortion
-                width: double.infinity,  // Ensures the image fills the width of the card
-                height: double.infinity, // Ensures the image fills the height of the card
-              ),
-            ),
-          )
-              : Center(
-            child: Icon(Icons.add, size: 50, color: Colors.white54),
-          ),
         ),
       ),
     );
