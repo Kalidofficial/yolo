@@ -35,7 +35,6 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _isEmailVerified = false;
         });
-        // Show the email verification dialog
         _showEmailVerificationDialog();
       } else {
         setState(() {
@@ -44,78 +43,34 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Login Successful")),
         );
-        // Redirect to HomePage.dart after successful login
         Navigator.pushReplacementNamed(context, '/HomePage');
       }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+
+      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+        _showErrorDialog("Incorrect email or password.");
+      } else {
+        _showErrorDialog("Error: ${e.message}");
+      }
     }
   }
 
   Future<void> _loginWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        return;
+      // Check if the user is already signed in with Google
+      if (await _googleSignIn.isSignedIn()) {
+        await _googleSignIn.signOut();  // Sign out from the current Google account
       }
 
-      // Prompt for existing or new account
-      _showGoogleAccountChoiceDialog(googleUser);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
+      // Proceed with Google Sign-In
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return; // User canceled the sign-in
+      }
 
-  void _showGoogleAccountChoiceDialog(GoogleSignInAccount googleUser) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.black,
-          title: Text(
-            "Google Login",
-            style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange),
-          ),
-          content: Text(
-            "Do you want to use your existing account or add a new one?",
-            style: TextStyle(fontFamily: 'Jerry10', color: Colors.white),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                _signInWithExistingAccount(googleUser);
-                Navigator.pop(context);
-              },
-              child: Text(
-                "Use Existing Account",
-                style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                _addNewAccount(googleUser);
-                Navigator.pop(context);
-              },
-              child: Text(
-                "Add New Account",
-                style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _signInWithExistingAccount(GoogleSignInAccount googleUser) async {
-    try {
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -129,41 +84,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Google Login Successful")),
         );
-        // Redirect to HomePage.dart after successful login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => HomePage()),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
-
-  Future<void> _addNewAccount(GoogleSignInAccount googleUser) async {
-    try {
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
-      User? user = userCredential.user;
-
-      if (user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("This account is not registered. Please sign up.")),
-        );
-        // Navigate to the signup page with the user's email
-        Navigator.pushNamed(context, '/signup', arguments: user.email);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      _showErrorDialog("Error: $e");
     }
   }
 
@@ -201,12 +128,12 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Password reset link sent to your email.", style: TextStyle(fontFamily: 'Jerry10'))),
+        SnackBar(content: Text("Password reset link sent to your email.")),
       );
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e", style: TextStyle(fontFamily: 'Jerry10'))),
+        SnackBar(content: Text("Error: $e")),
       );
     }
   }
@@ -241,6 +168,36 @@ class _LoginScreenState extends State<LoginScreen> {
                 }
               },
               child: Text("Reset", style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: Text(
+            "Login Failed",
+            style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(fontFamily: 'Jerry10', color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                "OK",
+                style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange),
+              ),
             ),
           ],
         );
@@ -373,14 +330,19 @@ class _LoginScreenState extends State<LoginScreen> {
             ElevatedButton.icon(
               onPressed: _loginWithGoogle,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[800],
+                backgroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               ),
-              icon: Icon(Icons.login),
+              icon: Image.asset(
+                'assets/logo/googlelogo.png',
+                height: 24,
+                width: 24,
+              ),
               label: Text(
                 "Login with Google",
                 style: TextStyle(
                   fontFamily: 'Jerry10',
+                  color: Colors.black,
                 ),
               ),
             ),

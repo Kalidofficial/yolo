@@ -15,13 +15,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   // Controllers for form fields
   TextEditingController _displayNameController = TextEditingController();
-  TextEditingController _bioController = TextEditingController();
+  TextEditingController _aboutMeController = TextEditingController();
   TextEditingController _dateOfBirthController = TextEditingController();
   TextEditingController _genderController = TextEditingController();
   TextEditingController _lookingForController = TextEditingController();
-  String? _profilePicUrl;
+  String? _profilePhoto;
   bool _isEditingDisplayName = false;
-  bool _isEditingBio = false;
+  bool _isEditingAboutMe = false;
   bool _isEditingDateOfBirth = false;
   bool _isEditingGender = false;
   bool _isEditingLookingFor = false;
@@ -29,7 +29,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // Firebase user
   User? currentUser;
   String? currentDisplayName;
-  String? currentBio;
+  String? currentAboutMe;
   String? currentDateOfBirth;
   String? currentGender;
   String? currentLookingFor;
@@ -49,13 +49,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
           final userData = userDoc.data();
           setState(() {
             currentDisplayName = userData?['displayName'];
-            currentBio = userData?['bio'];
+            currentAboutMe = userData?['aboutMe'];
             currentDateOfBirth = userData?['dateOfBirth'];
             currentGender = userData?['gender'];
             currentLookingFor = userData?['lookingFor'];
-            _profilePicUrl = userData?['profilePicUrl'];
+            _profilePhoto = userData?['profilePhoto'];
             _displayNameController.text = currentDisplayName ?? '';
-            _bioController.text = currentBio ?? '';
+            _aboutMeController.text = currentAboutMe ?? '';
             _dateOfBirthController.text = currentDateOfBirth ?? '';
             _genderController.text = currentGender ?? '';
             _lookingForController.text = currentLookingFor ?? '';
@@ -74,7 +74,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (pickedFile != null) {
       // Upload the image to Firebase Storage and get the URL
       setState(() {
-        _profilePicUrl = pickedFile.path; // For now, using the file path instead of Firebase Storage URL
+        _profilePhoto = pickedFile.path; // For now, using the file path instead of Firebase Storage URL
       });
     }
   }
@@ -106,10 +106,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: CircleAvatar(
                   radius: 80,
                   backgroundColor: Colors.grey,
-                  backgroundImage: _profilePicUrl != null
-                      ? NetworkImage(_profilePicUrl!)
+                  backgroundImage: _profilePhoto != null
+                      ? NetworkImage(_profilePhoto!)
                       : null,
-                  child: _profilePicUrl == null
+                  child: _profilePhoto == null
                       ? Icon(
                     Icons.camera_alt,
                     size: 40,
@@ -129,7 +129,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                     ),
-                    child: Text('Change Profile Pic'),
+                    child: Text('Change Profile Pic', style: TextStyle(color: Colors.black)),
                   ),
                   SizedBox(width: 10),
                   ElevatedButton(
@@ -137,7 +137,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                     ),
-                    child: Text('View Profile Pic'),
+                    child: Text('View Profile Pic', style: TextStyle(color: Colors.black)),
                   ),
                 ],
               ),
@@ -147,66 +147,64 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Row(
                 children: [
                   Expanded(
-                    child: _isEditingDisplayName
-                        ? TextFormField(
-                      controller: _displayNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Display Name',
-                        filled: true,
-                        fillColor: Colors.grey[800],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isEditingDisplayName = !_isEditingDisplayName;
+                        });
+                      },
+                      child: _isEditingDisplayName
+                          ? TextFormField(
+                        controller: _displayNameController,
+                        decoration: InputDecoration(
+                          labelText: 'Display Name',
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
+                      )
+                          : Text(
+                        currentDisplayName ?? 'No display name',
+                        style: TextStyle(color: Colors.white),
                       ),
-                    )
-                        : Text(
-                      currentDisplayName ?? 'No display name',
-                      style: TextStyle(color: Colors.white),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.orange),
-                    onPressed: () {
-                      setState(() {
-                        _isEditingDisplayName = !_isEditingDisplayName;
-                      });
-                    },
                   ),
                 ],
               ),
               SizedBox(height: 16),
 
-              // Bio Input
+              // About Me Input
               Row(
                 children: [
                   Expanded(
-                    child: _isEditingBio
-                        ? TextFormField(
-                      controller: _bioController,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        labelText: 'Bio',
-                        filled: true,
-                        fillColor: Colors.grey[800],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isEditingAboutMe = !_isEditingAboutMe;
+                        });
+                      },
+                      child: _isEditingAboutMe
+                          ? TextFormField(
+                        controller: _aboutMeController,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          labelText: 'About Me',
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
+                      )
+                          : Text(
+                        currentAboutMe ?? 'No About Me available',
+                        style: TextStyle(color: Colors.white),
                       ),
-                    )
-                        : Text(
-                      currentBio ?? 'No bio available',
-                      style: TextStyle(color: Colors.white),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.orange),
-                    onPressed: () {
-                      setState(() {
-                        _isEditingBio = !_isEditingBio;
-                      });
-                    },
                   ),
                 ],
               ),
@@ -216,31 +214,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Row(
                 children: [
                   Expanded(
-                    child: _isEditingDateOfBirth
-                        ? TextFormField(
-                      controller: _dateOfBirthController,
-                      decoration: InputDecoration(
-                        labelText: 'Date of Birth',
-                        filled: true,
-                        fillColor: Colors.grey[800],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isEditingDateOfBirth = !_isEditingDateOfBirth;
+                        });
+                      },
+                      child: _isEditingDateOfBirth
+                          ? TextFormField(
+                        controller: _dateOfBirthController,
+                        decoration: InputDecoration(
+                          labelText: 'Date of Birth',
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
+                      )
+                          : Text(
+                        currentDateOfBirth ?? 'No date of birth',
+                        style: TextStyle(color: Colors.white),
                       ),
-                    )
-                        : Text(
-                      currentDateOfBirth ?? 'No date of birth',
-                      style: TextStyle(color: Colors.white),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.orange),
-                    onPressed: () {
-                      setState(() {
-                        _isEditingDateOfBirth = !_isEditingDateOfBirth;
-                      });
-                    },
                   ),
                 ],
               ),
@@ -250,31 +247,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Row(
                 children: [
                   Expanded(
-                    child: _isEditingGender
-                        ? TextFormField(
-                      controller: _genderController,
-                      decoration: InputDecoration(
-                        labelText: 'Gender',
-                        filled: true,
-                        fillColor: Colors.grey[800],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isEditingGender = !_isEditingGender;
+                        });
+                      },
+                      child: _isEditingGender
+                          ? TextFormField(
+                        controller: _genderController,
+                        decoration: InputDecoration(
+                          labelText: 'Gender',
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
+                      )
+                          : Text(
+                        currentGender ?? 'No gender specified',
+                        style: TextStyle(color: Colors.white),
                       ),
-                    )
-                        : Text(
-                      currentGender ?? 'No gender specified',
-                      style: TextStyle(color: Colors.white),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.orange),
-                    onPressed: () {
-                      setState(() {
-                        _isEditingGender = !_isEditingGender;
-                      });
-                    },
                   ),
                 ],
               ),
@@ -284,31 +280,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Row(
                 children: [
                   Expanded(
-                    child: _isEditingLookingFor
-                        ? TextFormField(
-                      controller: _lookingForController,
-                      decoration: InputDecoration(
-                        labelText: 'Looking For',
-                        filled: true,
-                        fillColor: Colors.grey[800],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isEditingLookingFor = !_isEditingLookingFor;
+                        });
+                      },
+                      child: _isEditingLookingFor
+                          ? TextFormField(
+                        controller: _lookingForController,
+                        decoration: InputDecoration(
+                          labelText: 'Looking For',
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
+                      )
+                          : Text(
+                        currentLookingFor ?? 'Not specified',
+                        style: TextStyle(color: Colors.white),
                       ),
-                    )
-                        : Text(
-                      currentLookingFor ?? 'Not specified',
-                      style: TextStyle(color: Colors.white),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.orange),
-                    onPressed: () {
-                      setState(() {
-                        _isEditingLookingFor = !_isEditingLookingFor;
-                      });
-                    },
                   ),
                 ],
               ),
@@ -323,11 +318,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     // Update Firestore with new data
                     await _firestore.collection('users').doc(currentUser!.uid).update({
                       'displayName': _displayNameController.text,
-                      'bio': _bioController.text,
+                      'aboutMe': _aboutMeController.text,
                       'dateOfBirth': _dateOfBirthController.text,
                       'gender': _genderController.text,
                       'lookingFor': _lookingForController.text,
-                      'profilePicUrl': _profilePicUrl, // Update the profile picture URL
+                      'profilePhoto': _profilePhoto, // Update the profile photo field
                     });
 
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -384,12 +379,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   // Show profile image in full screen
   void _showImageViewer() {
-    if (_profilePicUrl != null) {
+    if (_profilePhoto != null) {
       showDialog(
         context: context,
         builder: (context) {
           return Dialog(
-            child: Image.network(_profilePicUrl!),
+            child: Image.network(_profilePhoto!),
           );
         },
       );

@@ -18,6 +18,9 @@ class _HomePageState extends State<HomePage> {
   User? currentUser;
   TextEditingController _searchController = TextEditingController();
   String displayName = 'No Name'; // Default display name
+  List<DocumentSnapshot> allUsers = [];
+  List<DocumentSnapshot> filteredUsers = [];
+  bool isLoading = true; // Add loading state
 
   @override
   void initState() {
@@ -25,6 +28,7 @@ class _HomePageState extends State<HomePage> {
     currentUser = _auth.currentUser;
     if (currentUser != null) {
       _fetchUserDisplayName();
+      _fetchUsers();
     }
   }
 
@@ -39,6 +43,26 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       print('Error fetching display name: $e');
+    }
+  }
+
+  // Fetch the users from Firestore
+  Future<void> _fetchUsers() async {
+    setState(() {
+      isLoading = true; // Set loading state to true when fetching users
+    });
+    try {
+      QuerySnapshot querySnapshot = await _firestore.collection('users').get(); // Simplified query to get all users
+      setState(() {
+        allUsers = querySnapshot.docs;
+        filteredUsers = List.from(allUsers); // Copy all users to the filtered list
+        isLoading = false; // Set loading state to false when data is fetched
+      });
+    } catch (e) {
+      print('Error fetching users: $e');
+      setState(() {
+        isLoading = false; // Stop loading on error
+      });
     }
   }
 
@@ -63,7 +87,13 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           onChanged: (value) {
-            setState(() {});
+            setState(() {
+              filteredUsers = allUsers.where((userDoc) {
+                final user = userDoc.data() as Map<String, dynamic>;
+                final displayName = user['displayName'] ?? '';
+                return displayName.toLowerCase().contains(value.toLowerCase());
+              }).toList();
+            });
           },
         ),
       ),
@@ -154,103 +184,87 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore.collection('users').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error loading users'));
-          }
+      body: isLoading
+          ? Center(child: CircularProgressIndicator()) // Show loading spinner while fetching data
+          : filteredUsers.isEmpty
+          ? Center(child: Text('No users found', style: TextStyle(color: Colors.white)))
+          : GridView.builder(
+        padding: EdgeInsets.all(10),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.8,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: filteredUsers.length,
+        itemBuilder: (context, index) {
+          final userDoc = filteredUsers[index];
+          final user = userDoc.data() as Map<String, dynamic>;
+          final isActive = user['isActive'] ?? false;
+          final displayName = user['displayName'] ?? 'Unknown';
+          final profilePhoto = user['profilePhoto'];
+          final dateOfBirth = user['dateOfBirth'];
+          final age = dateOfBirth != null
+              ? _calculateAge(_parseDate(dateOfBirth))
+              : null;
 
-          // Filter users based on search query
-          final users = snapshot.data!.docs.where((userDoc) {
-            final user = userDoc.data() as Map<String, dynamic>;
-            final displayName = user['displayName'] ?? '';
-            return displayName.toLowerCase().contains(_searchController.text.toLowerCase());
-          }).toList();
-
-          return GridView.builder(
-            padding: EdgeInsets.all(10),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.8,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final userDoc = users[index];
-              final user = userDoc.data() as Map<String, dynamic>;
-              final isActive = user['isActive'] ?? false;
-              final displayName = user['displayName'] ?? 'Unknown';
-              final profilePhoto = user['profilePhoto'];
-              final dateOfBirth = user['dateOfBirth'];
-              final age = dateOfBirth != null
-                  ? _calculateAge(_parseDate(dateOfBirth))
-                  : null;
-
-              return GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(context, '/profilecard', arguments: user);
-                },
-                child: Card(
-                  color: Colors.grey[800],
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.grey,
-                        child: profilePhoto != null
-                            ? ClipOval(
-                          child: Image.network(
-                            profilePhoto,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) {
-                                return child;
-                              } else {
-                                return Center(child: CircularProgressIndicator());
-                              }
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              print('Error loading image: $error');
-                              return Icon(Icons.person, size: 50, color: Colors.white);
-                            },
-                          ),
-                        )
-                            : Icon(Icons.person, size: 50, color: Colors.white),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        displayName,
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 5),
-                      if (age != null)
-                        Text(
-                          '$age years old',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                      SizedBox(height: 5),
-                      Icon(
-                        Icons.circle,
-                        color: isActive ? Colors.green : Colors.red,
-                        size: 10,
-                      ),
-                    ],
-                  ),
-                ),
-              );
+          return GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/profilecard', arguments: user);
             },
+            child: Card(
+              color: Colors.grey[800],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.grey,
+                    child: ClipOval(
+                      child: profilePhoto != null
+                          ? Image.network(
+                        profilePhoto,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) {
+                            return child;
+                          } else {
+                            return Center(child: CircularProgressIndicator());
+                          }
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(Icons.person, size: 50, color: Colors.white);
+                        },
+                      )
+                          : Icon(Icons.person, size: 50, color: Colors.white),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    displayName,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 5),
+                  if (age != null)
+                    Text(
+                      '$age years old',
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  SizedBox(height: 5),
+                  Icon(
+                    Icons.circle,
+                    color: isActive ? Colors.green : Colors.red,
+                    size: 10,
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),

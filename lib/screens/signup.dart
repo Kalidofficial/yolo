@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'homepage.dart';
+
 class SignUpScreen extends StatefulWidget {
   @override
   _SignUpScreenState createState() => _SignUpScreenState();
@@ -15,72 +17,40 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isLoading = false;
 
   Future<void> _signUpUser() async {
-    // Check if passwords match
+    setState(() {
+      _isLoading = true;
+    });
+
     if (_passwordController.text.trim() != _confirmPasswordController.text.trim()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Passwords do not match")),
       );
+      setState(() {
+        _isLoading = false;
+      });
       return;
     }
 
-    setState(() {
-      _isLoading = true; // Show loading screen
-    });
-
     try {
-      // Create user with email and password
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // Send verification email
-      await userCredential.user?.sendEmailVerification();
+      User? user = userCredential.user;
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Sign Up Successful! A verification email has been sent.")),
-      );
-
-      // Check email verification status
-      await _checkEmailVerification(userCredential);
-    } catch (e) {
-      setState(() {
-        _isLoading = false; // Hide loading screen in case of error
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
-
-  Future<void> _checkEmailVerification(UserCredential userCredential) async {
-    bool isVerified = false;
-
-    while (!isVerified) {
-      await Future.delayed(Duration(seconds: 3)); // Wait for 3 seconds before rechecking
-      await userCredential.user?.reload(); // Reload the user to update their status
-      isVerified = userCredential.user?.emailVerified ?? false;
-
-      if (isVerified) {
-        setState(() {
-          _isLoading = false;
-        });
-
-        // Navigate to the complete profile screen
-        Navigator.pushReplacementNamed(context, '/complete_profile');
-        break; // Exit the loop
+      if (user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Sign Up Successful")),
+        );
+        Navigator.pushReplacementNamed(context, '/HomePage');
       }
-    }
-
-    if (!isVerified) {
+    } catch (e) {
       setState(() {
         _isLoading = false;
       });
-
-      // Notify the user to verify their email
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please verify your email before proceeding.")),
+        SnackBar(content: Text("Error: $e")),
       );
     }
   }
@@ -108,11 +78,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ],
       ),
       backgroundColor: Colors.black,
-      body: _isLoading
-          ? Center(
-        child: CircularProgressIndicator(), // Show loading screen while signing up
-      )
-          : Padding(
+      body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -129,11 +95,83 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
             ),
             SizedBox(height: 50),
-            _buildTextField(_emailController, "Email", false),
+            TextField(
+              controller: _emailController,
+              decoration: InputDecoration(
+                labelText: "Email",
+                labelStyle: TextStyle(
+                  fontFamily: 'Jerry10',
+                  color: Colors.white,
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+              ),
+              style: TextStyle(
+                fontFamily: 'Jerry10',
+                color: Colors.white,
+              ),
+            ),
             SizedBox(height: 20),
-            _buildTextField(_passwordController, "Password", true),
+            TextField(
+              controller: _passwordController,
+              obscureText: !_passwordVisible,
+              decoration: InputDecoration(
+                labelText: "Password",
+                labelStyle: TextStyle(
+                  fontFamily: 'Jerry10',
+                  color: Colors.white,
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _passwordVisible = !_passwordVisible;
+                    });
+                  },
+                ),
+              ),
+              style: TextStyle(
+                fontFamily: 'Jerry10',
+                color: Colors.white,
+              ),
+            ),
             SizedBox(height: 20),
-            _buildTextField(_confirmPasswordController, "Confirm Password", true),
+            TextField(
+              controller: _confirmPasswordController,
+              obscureText: !_passwordVisible,
+              decoration: InputDecoration(
+                labelText: "Confirm Password",
+                labelStyle: TextStyle(
+                  fontFamily: 'Jerry10',
+                  color: Colors.white,
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _passwordVisible = !_passwordVisible;
+                    });
+                  },
+                ),
+              ),
+              style: TextStyle(
+                fontFamily: 'Jerry10',
+                color: Colors.white,
+              ),
+            ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: _signUpUser,
@@ -142,7 +180,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               ),
               child: Text(
-                "Sign Up",
+                _isLoading ? "Signing Up..." : "Sign Up",
                 style: TextStyle(
                   fontFamily: 'Jerry10',
                 ),
@@ -150,40 +188,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String label, bool obscure) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure ? !_passwordVisible : false,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          fontFamily: 'Jerry10',
-          color: Colors.white,
-        ),
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white),
-        ),
-        suffixIcon: obscure
-            ? IconButton(
-          icon: Icon(
-            _passwordVisible ? Icons.visibility : Icons.visibility_off,
-            color: Colors.white,
-          ),
-          onPressed: () {
-            setState(() {
-              _passwordVisible = !_passwordVisible;
-            });
-          },
-        )
-            : null,
-      ),
-      style: TextStyle(
-        fontFamily: 'Jerry10',
-        color: Colors.white,
       ),
     );
   }

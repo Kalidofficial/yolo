@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Import for date formatting
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'inbox.dart'; // Import the Inbox page
 
-class ProfileCardPage extends StatelessWidget {
+class ProfileCardPage extends StatefulWidget {
   final Map<String, dynamic> user; // User data passed as argument
+  final String currentUserId; // Current user ID for sending message
 
   // Constructor to receive user data
-  ProfileCardPage({required this.user});
+  ProfileCardPage({required this.user, required this.currentUserId});
+
+  @override
+  _ProfileCardPageState createState() => _ProfileCardPageState();
+}
+
+class _ProfileCardPageState extends State<ProfileCardPage> {
+  final TextEditingController _messageController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    final displayName = user['displayName'] ?? 'Unknown';
-    final profilePhoto = user['profilePhoto'];
-    final dateOfBirth = user['dateOfBirth']; // mm/dd/yy format
-    final gender = user['gender'] ?? 'Not specified';
-    final lookingFor = user['lookingFor'] ?? 'Not specified';
-    final aboutMe = user['aboutMe'] ?? 'No about available';
-    final isActive = user['isActive'] ?? false;
+    final displayName = widget.user['displayName'] ?? 'Unknown';
+    final profilePhoto = widget.user['profilePhoto'];
+    final dateOfBirth = widget.user['dateOfBirth']; // mm/dd/yy format
+    final gender = widget.user['gender'] ?? 'Not specified';
+    final lookingFor = widget.user['lookingFor'] ?? 'Not specified';
+    final aboutMe = widget.user['aboutMe'] ?? 'No about available';
+    final isActive = widget.user['isActive'] ?? false;
 
     // Parse the dateOfBirth if it's not null
     final age = dateOfBirth != null
@@ -69,7 +79,7 @@ class ProfileCardPage extends StatelessWidget {
               )
                   : Icon(Icons.person, size: 60, color: Colors.white),
             ),
-            SizedBox(height: 32),  // Increased gap
+            SizedBox(height: 32), // Increased gap
             // Name, Age, and Online Status
             Align(
               alignment: Alignment.centerLeft,
@@ -78,7 +88,7 @@ class ProfileCardPage extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
-            SizedBox(height: 16),  // Increased gap
+            SizedBox(height: 16), // Increased gap
             Align(
               alignment: Alignment.centerLeft,
               child: Row(
@@ -96,7 +106,7 @@ class ProfileCardPage extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 32),  // Increased gap
+            SizedBox(height: 32), // Increased gap
             // Gender and Looking For
             Align(
               alignment: Alignment.centerLeft,
@@ -105,7 +115,7 @@ class ProfileCardPage extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
-            SizedBox(height: 16),  // Increased gap
+            SizedBox(height: 16), // Increased gap
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -113,7 +123,7 @@ class ProfileCardPage extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
-            SizedBox(height: 32),  // Increased gap
+            SizedBox(height: 32), // Increased gap
             // Bio
             Align(
               alignment: Alignment.centerLeft,
@@ -123,7 +133,7 @@ class ProfileCardPage extends StatelessWidget {
                 textAlign: TextAlign.left,
               ),
             ),
-            Spacer(),  // This will push the footer to the bottom
+            Spacer(), // This will push the footer to the bottom
             // Footer to send a message
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0), // Padding from the bottom
@@ -131,6 +141,7 @@ class ProfileCardPage extends StatelessWidget {
                 children: [
                   Expanded(
                     child: TextField(
+                      controller: _messageController,
                       decoration: InputDecoration(
                         hintText: 'Say something...',
                         hintStyle: TextStyle(color: Colors.white),
@@ -145,10 +156,12 @@ class ProfileCardPage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 8),
-                  Icon(
-                    Icons.send,  // Send icon inside the message input
-                    color: Colors.white,
-                    size: 30,
+                  IconButton(
+                    icon: Icon(Icons.send, color: Colors.white, size: 30),
+                    onPressed: () {
+                      // Send message and navigate to inbox
+                      _sendMessage(context);
+                    },
                   ),
                 ],
               ),
@@ -177,11 +190,65 @@ class ProfileCardPage extends StatelessWidget {
     // Logic to add the user to a blocklist (could be a Firestore collection)
     print('User blocked! Add them to Blocklist collection.');
 
-    // You can handle the block action and navigate to Blocklist screen here
-    // For example, if you want to store the blocked user:
-    // Firestore.firestore().collection('blockedUsers').add({...});
-
     // Navigate to the Blocklist page (optional)
     Navigator.pushNamed(context, '/blocklist');
+  }
+
+  // Method to send a message and open the inbox screen
+  void _sendMessage(BuildContext context) {
+    final message = _messageController.text.trim();
+
+    if (message.isNotEmpty) {
+      // Ensure senderId and receiverId are valid
+      if (widget.currentUserId.isEmpty || widget.user['id'].isEmpty) {
+        print('Error: Sender or Receiver ID is empty.');
+        return;
+      }
+
+      // Get the current time
+      final timestamp = FieldValue.serverTimestamp();
+
+      // Create a message object
+      final messageData = {
+        'senderId': widget.currentUserId,
+        'receiverId': widget.user['id'],
+        'message': message,
+        'timestamp': timestamp,
+      };
+
+      // Save the message in Firestore under the specific user's collection
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUserId)
+          .collection('inbox')
+          .add(messageData)
+          .then((_) {
+        // Also save to the receiver's inbox collection
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.user['id'])
+            .collection('inbox')
+            .add(messageData)
+            .then((_) {
+          // Clear the text field after sending
+          _messageController.clear();
+
+          // Navigate to the Inbox page and pass required data
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InboxPage(
+                currentUserId: widget.currentUserId,
+                receiverId: widget.user['id'],
+              ),
+            ),
+          );
+        }).catchError((error) {
+          print('Error saving message to receiver: $error');
+        });
+      }).catchError((error) {
+        print('Error saving message to sender: $error');
+      });
+    }
   }
 }
