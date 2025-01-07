@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'homepage.dart';
-
 class SignUpScreen extends StatefulWidget {
   @override
   _SignUpScreenState createState() => _SignUpScreenState();
@@ -43,7 +41,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Sign Up Successful")),
         );
-        Navigator.pushReplacementNamed(context, '/HomePage');
+        Navigator.pushReplacementNamed(context, '/complete_profile');
       }
     } catch (e) {
       setState(() {
