@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Import for date formatting
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'inbox.dart'; // Import the Inbox page
+import 'package:firebase_auth/firebase_auth.dart'; // For getting the current user's ID
 
 class ProfileCardPage extends StatefulWidget {
   final Map<String, dynamic> user; // User data passed as argument
   final String currentUserId; // Current user ID for sending message
 
-  // Constructor to receive user data
   ProfileCardPage({required this.user, required this.currentUserId});
 
   @override
@@ -15,8 +15,6 @@ class ProfileCardPage extends StatefulWidget {
 }
 
 class _ProfileCardPageState extends State<ProfileCardPage> {
-  final TextEditingController _messageController = TextEditingController();
-
   @override
   Widget build(BuildContext context) {
     final displayName = widget.user['displayName'] ?? 'Unknown';
@@ -27,10 +25,7 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
     final aboutMe = widget.user['aboutMe'] ?? 'No about available';
     final isActive = widget.user['isActive'] ?? false;
 
-    // Parse the dateOfBirth if it's not null
-    final age = dateOfBirth != null
-        ? _calculateAge(dateOfBirth)
-        : null;
+    final age = dateOfBirth != null ? _calculateAge(dateOfBirth) : null;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -41,7 +36,6 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
         actions: [
           IconButton(
             onPressed: () {
-              // Handle block action here
               _blockUser(context);
             },
             icon: Icon(Icons.block, color: Colors.white),
@@ -72,15 +66,13 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
                     }
                   },
                   errorBuilder: (context, error, stackTrace) {
-                    print('Error loading image: $error');
                     return Icon(Icons.person, size: 60, color: Colors.white);
                   },
                 ),
               )
                   : Icon(Icons.person, size: 60, color: Colors.white),
             ),
-            SizedBox(height: 32), // Increased gap
-            // Name, Age, and Online Status
+            SizedBox(height: 32),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -88,7 +80,7 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
                 style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
-            SizedBox(height: 16), // Increased gap
+            SizedBox(height: 16),
             Align(
               alignment: Alignment.centerLeft,
               child: Row(
@@ -106,8 +98,7 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
                 ],
               ),
             ),
-            SizedBox(height: 32), // Increased gap
-            // Gender and Looking For
+            SizedBox(height: 32),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -115,7 +106,7 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
-            SizedBox(height: 16), // Increased gap
+            SizedBox(height: 16),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -123,8 +114,7 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
-            SizedBox(height: 32), // Increased gap
-            // Bio
+            SizedBox(height: 32),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -133,37 +123,24 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
                 textAlign: TextAlign.left,
               ),
             ),
-            Spacer(), // This will push the footer to the bottom
-            // Footer to send a message
+            Spacer(),
             Padding(
-              padding: const EdgeInsets.only(bottom: 16.0), // Padding from the bottom
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Say something...',
-                        hintStyle: TextStyle(color: Colors.white),
-                        filled: true,
-                        fillColor: Colors.grey[800],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: EdgeInsets.all(10),
-                      ),
-                    ),
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
                   ),
-                  SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(Icons.send, color: Colors.white, size: 30),
-                    onPressed: () {
-                      // Send message and navigate to inbox
-                      _sendMessage(context);
-                    },
-                  ),
-                ],
+                  padding: EdgeInsets.symmetric(vertical: 15, horizontal: 30),
+                ),
+                onPressed: () {
+                  _sendMessage(context);
+                },
+                child: Text(
+                  'Send Message',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -172,10 +149,9 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
     );
   }
 
-  // Helper function to calculate age based on birthdate (mm/dd/yy format)
   int _calculateAge(String birthDate) {
-    final dateFormat = DateFormat('MM/dd/yy'); // Define the custom date format
-    final date = dateFormat.parse(birthDate); // Parse the date
+    final dateFormat = DateFormat('MM/dd/yy');
+    final date = dateFormat.parse(birthDate);
     final currentDate = DateTime.now();
     int age = currentDate.year - date.year;
     if (currentDate.month < date.month ||
@@ -185,70 +161,52 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
     return age;
   }
 
-  // Method to block the user (store in Blocklist.dart)
   void _blockUser(BuildContext context) {
-    // Logic to add the user to a blocklist (could be a Firestore collection)
-    print('User blocked! Add them to Blocklist collection.');
-
-    // Navigate to the Blocklist page (optional)
-    Navigator.pushNamed(context, '/blocklist');
+    print('User blocked!');
   }
 
-  // Method to send a message and open the inbox screen
-  void _sendMessage(BuildContext context) {
-    final message = _messageController.text.trim();
-
-    if (message.isNotEmpty) {
-      // Ensure senderId and receiverId are valid
-      if (widget.currentUserId.isEmpty || widget.user['id'].isEmpty) {
-        print('Error: Sender or Receiver ID is empty.');
+  void _sendMessage(BuildContext context) async {
+    try {
+      final receiverDisplayName = widget.user['displayName'];
+      if (receiverDisplayName == null || receiverDisplayName.isEmpty) {
+        print('Error: Receiver display name is missing.');
         return;
       }
 
-      // Get the current time
-      final timestamp = FieldValue.serverTimestamp();
+      final senderId = widget.currentUserId;
 
-      // Create a message object
-      final messageData = {
-        'senderId': widget.currentUserId,
-        'receiverId': widget.user['id'],
-        'message': message,
-        'timestamp': timestamp,
-      };
-
-      // Save the message in Firestore under the specific user's collection
-      FirebaseFirestore.instance
+      // Fetch receiver user ID based on their display name
+      final receiverSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.currentUserId)
-          .collection('inbox')
-          .add(messageData)
-          .then((_) {
-        // Also save to the receiver's inbox collection
-        FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.user['id'])
-            .collection('inbox')
-            .add(messageData)
-            .then((_) {
-          // Clear the text field after sending
-          _messageController.clear();
+          .where('displayName', isEqualTo: receiverDisplayName)
+          .get();
 
-          // Navigate to the Inbox page and pass required data
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => InboxPage(
-                currentUserId: widget.currentUserId,
-                receiverId: widget.user['id'],
-              ),
-            ),
-          );
-        }).catchError((error) {
-          print('Error saving message to receiver: $error');
-        });
-      }).catchError((error) {
-        print('Error saving message to sender: $error');
-      });
+      if (receiverSnapshot.docs.isEmpty) {
+        print('Error: Receiver not found.');
+        return;
+      }
+
+      final receiverId = receiverSnapshot.docs.first.id;
+
+      final chatId = _generateChatId(senderId, receiverId);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => InboxPage(
+            chatId: chatId,
+            senderId: senderId,
+            receiverId: receiverId,
+          ),
+        ),
+      );
+    } catch (error) {
+      print('Error sending message: $error');
     }
+  }
+
+  String _generateChatId(String user1, String user2) {
+    // Generate a chat ID by sorting the user IDs to create a unique, ordered chat ID
+    return '${user1.compareTo(user2) < 0 ? user1 : user2}_${user1.compareTo(user2) < 0 ? user2 : user1}';
   }
 }

@@ -15,7 +15,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   bool _passwordVisible = false;
-  bool _isEmailVerified = false;
   bool _isLoading = false;
 
   Future<void> _loginUser() async {
@@ -29,22 +28,13 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      User? user = userCredential.user;
-
-      if (user != null && !user.emailVerified) {
-        setState(() {
-          _isEmailVerified = false;
-        });
-        _showEmailVerificationDialog();
-      } else {
-        setState(() {
-          _isEmailVerified = true;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login Successful")),
-        );
-        Navigator.pushReplacementNamed(context, '/HomePage');
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login Successful")),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+      );
     } on FirebaseAuthException catch (e) {
       setState(() {
         _isLoading = false;
@@ -60,15 +50,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loginWithGoogle() async {
     try {
-      // Check if the user is already signed in with Google
       if (await _googleSignIn.isSignedIn()) {
-        await _googleSignIn.signOut();  // Sign out from the current Google account
+        await _googleSignIn.signOut();
       }
 
-      // Proceed with Google Sign-In
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        return; // User canceled the sign-in
+        return;
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -92,87 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       _showErrorDialog("Error: $e");
     }
-  }
-
-  void _showEmailVerificationDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.black,
-          title: Text(
-            "Email Verification",
-            style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange),
-          ),
-          content: Text(
-            "Please verify your email address before logging in. Check your inbox for the verification link.",
-            style: TextStyle(fontFamily: 'Jerry10', color: Colors.white),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                "OK",
-                style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _resetPassword() async {
-    try {
-      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Password reset link sent to your email.")),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
-
-  void _showForgotPasswordDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        TextEditingController _resetEmailController = TextEditingController();
-        return AlertDialog(
-          backgroundColor: Colors.black,
-          title: Text("Reset Password", style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange)),
-          content: TextField(
-            controller: _resetEmailController,
-            decoration: InputDecoration(
-              labelText: "Email",
-              labelStyle: TextStyle(fontFamily: 'Jerry10', color: Colors.white),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text("Cancel", style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange)),
-            ),
-            TextButton(
-              onPressed: () {
-                if (_resetEmailController.text.isNotEmpty) {
-                  _emailController.text = _resetEmailController.text;
-                  _resetPassword();
-                }
-              },
-              child: Text("Reset", style: TextStyle(fontFamily: 'Jerry10', color: Colors.orange)),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showErrorDialog(String message) {
@@ -303,16 +210,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 _isLoading ? "Logging in..." : "Login",
                 style: TextStyle(
                   fontFamily: 'Jerry10',
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: _showForgotPasswordDialog,
-              child: Text(
-                "Forgot Password?",
-                style: TextStyle(
-                  fontFamily: 'Jerry10',
-                  color: Colors.white,
                 ),
               ),
             ),

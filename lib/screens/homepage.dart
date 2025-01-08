@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'edit_profile.dart';
 import 'login.dart';
 import 'settings.dart';
-import 'user_account.dart'; // Import the UserAccountsPage
 
 class HomePage extends StatefulWidget {
   @override
@@ -17,10 +16,10 @@ class _HomePageState extends State<HomePage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   User? currentUser;
   TextEditingController _searchController = TextEditingController();
-  String displayName = 'No Name'; // Default display name
+  String displayName = 'No Name';
   List<DocumentSnapshot> allUsers = [];
   List<DocumentSnapshot> filteredUsers = [];
-  bool isLoading = true; // Add loading state
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -32,13 +31,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Fetch the user's display name from Firestore
   Future<void> _fetchUserDisplayName() async {
     try {
       DocumentSnapshot userDoc = await _firestore.collection('users').doc(currentUser!.uid).get();
       if (userDoc.exists) {
         setState(() {
-          displayName = userDoc['displayName'] ?? 'No Name'; // Set displayName from Firestore if available
+          displayName = userDoc['displayName'] ?? 'No Name';
         });
       }
     } catch (e) {
@@ -46,22 +44,27 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Fetch the users from Firestore
   Future<void> _fetchUsers() async {
     setState(() {
-      isLoading = true; // Set loading state to true when fetching users
+      isLoading = true;
     });
     try {
-      QuerySnapshot querySnapshot = await _firestore.collection('users').get(); // Simplified query to get all users
+      QuerySnapshot querySnapshot = await _firestore.collection('users').get();
+      final currentUserEmail = currentUser?.email;
       setState(() {
-        allUsers = querySnapshot.docs;
-        filteredUsers = List.from(allUsers); // Copy all users to the filtered list
-        isLoading = false; // Set loading state to false when data is fetched
+        allUsers = querySnapshot.docs
+            .where((userDoc) {
+          final user = userDoc.data() as Map<String, dynamic>;
+          return user['email'] != currentUserEmail; // Exclude current user's profile
+        })
+            .toList();
+        filteredUsers = List.from(allUsers);
+        isLoading = false;
       });
     } catch (e) {
       print('Error fetching users: $e');
       setState(() {
-        isLoading = false; // Stop loading on error
+        isLoading = false;
       });
     }
   }
@@ -103,7 +106,6 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // Profile Pic and Display Name
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey,
@@ -123,28 +125,10 @@ class _HomePageState extends State<HomePage> {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  displayName, // Display name now fetched from Firestore
+                  displayName,
                   style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
                 SizedBox(height: 20),
-                // Online Mode Toggle
-                Row(
-                  children: [
-                    Icon(
-                      Icons.circle,
-                      color: Colors.green,
-                      size: 10,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      'Online',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    Spacer(),
-                  ],
-                ),
-                SizedBox(height: 20),
-                // Edit Profile Button
                 _buildDrawerItem(
                   icon: Icons.edit,
                   text: 'Edit Profile',
@@ -156,7 +140,6 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
                 SizedBox(height: 20),
-                // Settings Button
                 _buildDrawerItem(
                   icon: Icons.settings,
                   text: 'Settings',
@@ -168,7 +151,6 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
                 SizedBox(height: 20),
-                // Logout Button
                 _buildDrawerItem(
                   icon: Icons.logout,
                   text: 'Logout',
@@ -185,7 +167,7 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator()) // Show loading spinner while fetching data
+          ? Center(child: CircularProgressIndicator())
           : filteredUsers.isEmpty
           ? Center(child: Text('No users found', style: TextStyle(color: Colors.white)))
           : GridView.builder(
@@ -293,7 +275,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Function to build each item in the drawer
   Widget _buildDrawerItem({
     required IconData icon,
     required String text,

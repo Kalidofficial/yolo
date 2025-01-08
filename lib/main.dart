@@ -39,7 +39,9 @@ class MyApp extends StatelessWidget {
         '/edit_profile': (context) => EditProfilePage(), // Add route for edit profile page
         '/settings': (context) => SettingsPage(), // Add route for settings page
         '/inbox': (context) => InboxPage(
-          currentUserId: '', receiverId: '',
+          chatId: '',  // You need to pass the chatId here
+          senderId: '', // Current user ID
+          receiverId: '', // The receiver user ID
         ),
       },
     );
