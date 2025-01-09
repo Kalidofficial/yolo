@@ -206,7 +206,9 @@ class _ProfileCardPageState extends State<ProfileCardPage> {
   }
 
   String _generateChatId(String user1, String user2) {
-    // Generate a chat ID by sorting the user IDs to create a unique, ordered chat ID
-    return '${user1.compareTo(user2) < 0 ? user1 : user2}_${user1.compareTo(user2) < 0 ? user2 : user1}';
+    // Create a list of users, sort it, and then join them into a string
+    List<String> users = [user1, user2];
+    users.sort();
+    return '${users[0]}_${users[1]}';
   }
 }

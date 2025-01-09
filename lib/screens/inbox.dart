@@ -27,7 +27,6 @@ class _InboxPageState extends State<InboxPage> {
     _fetchReceiverName();
   }
 
-  // Fetch the receiver's display name from Firestore
   Future<void> _fetchReceiverName() async {
     try {
       final receiverDoc = await FirebaseFirestore.instance
@@ -44,33 +43,31 @@ class _InboxPageState extends State<InboxPage> {
     }
   }
 
-  // Send a message and save it to Firestore
-  void _sendMessage() async {
+  Future<void> _sendMessage() async {
     try {
-      final String senderId = FirebaseAuth.instance.currentUser?.uid ?? '';  // Get the current user's ID
+      final String senderId = FirebaseAuth.instance.currentUser?.uid ?? '';
       if (senderId.isEmpty) {
         print('Error: Sender ID is empty.');
         return;
       }
 
-      final String receiverId = widget.receiverId;
-
       final messageText = _messageController.text.trim();
       if (messageText.isEmpty) return;
 
-      // Add the message to Firestore under the correct chat collection
+      final messageData = {
+        'senderId': senderId,
+        'receiverId': widget.receiverId,
+        'message': messageText,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
       await FirebaseFirestore.instance
           .collection('chats')
           .doc(widget.chatId)
           .collection('messages')
-          .add({
-        'senderId': senderId,  // Ensure senderId is added to the message data
-        'message': messageText,  // Use the message from the text field
-        'timestamp': FieldValue.serverTimestamp(),
-        'receiverId': receiverId,  // Ensure receiverId is added as well
-      });
+          .add(messageData);
 
-      _messageController.clear();  // Clear the message input field
+      _messageController.clear();
     } catch (error) {
       print('Error sending message: $error');
     }
@@ -85,7 +82,6 @@ class _InboxPageState extends State<InboxPage> {
       ),
       body: Column(
         children: [
-          // Message list
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -111,11 +107,12 @@ class _InboxPageState extends State<InboxPage> {
                 final messages = snapshot.data!.docs;
 
                 return ListView.builder(
-                  reverse: true,
+                  reverse: true, // To ensure new messages appear at the bottom
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index].data() as Map<String, dynamic>;
-                    final isSentByCurrentUser = message['senderId'] == FirebaseAuth.instance.currentUser?.uid;
+                    final isSentByCurrentUser =
+                        message['senderId'] == FirebaseAuth.instance.currentUser?.uid;
 
                     return Align(
                       alignment: isSentByCurrentUser
@@ -139,8 +136,6 @@ class _InboxPageState extends State<InboxPage> {
               },
             ),
           ),
-
-          // Message input field
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(

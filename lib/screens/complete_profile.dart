@@ -60,6 +60,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             'dateOfBirth': dateOfBirth,
             'gender': selectedGender,
             'lookingFor': selectedLookingFor,
+            'email': user.email,  // Save the current user's email
           },
           SetOptions(merge: true),
         );
